@@ -1,0 +1,13 @@
+version = 1
+
+[input]
+markdown_dir = "md"
+sass_dir = "sass"
+
+[output]
+html_dir = "html"
+css_dir = "html/css"
+js_dir = "html/js"
+
+[code.highlight]
+theme = "Solarized (light)"

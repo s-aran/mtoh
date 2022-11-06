@@ -9,8 +9,8 @@ repository = "https://github.com/s-aran/mtoh"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-syntect = { version = "5.0" }
+syntect = { version = "5.0.0" }
 pulldown-cmark = "0.9.2"
 toml = "0.5.9"
-mlua = { version = "0.8", features = ["lua54", "vendored"] }
 grass = "0.11.2"
+serde = { version = "1.0.147", features = ["derive"] }

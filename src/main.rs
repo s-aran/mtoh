@@ -1,112 +1,130 @@
-use pulldown_cmark::{html, CodeBlockKind, CowStr, Event, Options, Parser, Tag};
+mod settings;
+
+use pulldown_cmark::{html, CodeBlockKind, Event, Options, Parser, Tag};
 use std::{
-    borrow::Cow,
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
-use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
-use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
-use toml::macros::IntoDeserializer;
 
-fn setup_parser<'a, I>(iter: I) -> impl Iterator<Item = Event<'a>>
-where
-    I: Iterator<Item = Event<'a>>,
-{
-    let mut code_language: Option<String> = None;
-    let mut events: Vec<Event> = vec![];
-    let mut codes: Vec<String> = vec![];
+pub struct PParser {
+    pub theme: String,
+}
 
-    iter.for_each(|ev| match &ev {
-        Event::Start(Tag::CodeBlock(ref c)) => {
-            code_language = match &c {
-                CodeBlockKind::Fenced(f) => Some(f.to_string()),
-                _ => None,
-            };
+impl PParser {
+    pub fn setup_parser<'a, I>(iter: I, p: &PParser) -> impl Iterator<Item = Event<'a>>
+    where
+        I: Iterator<Item = Event<'a>>,
+    {
+        let mut code_language: Option<String> = None;
+        let mut events: Vec<Event> = vec![];
+        let mut codes: Vec<String> = vec![];
 
-            // return Event::Start(Tag::CodeBlock(c.clone()));
-            events.push(ev.clone());
-        }
-        Event::End(Tag::CodeBlock(ref c)) => {
-            match &code_language {
-                Some(l) => {
-                    // println!("{}", l);
-                    let code = codes.join("");
+        iter.for_each(|ev| match &ev {
+            Event::Start(Tag::CodeBlock(ref c)) => {
+                code_language = match &c {
+                    CodeBlockKind::Fenced(f) => Some(f.to_string()),
+                    _ => None,
+                };
 
-                    // Load these once at the start of your program
-                    let ps = SyntaxSet::load_defaults_newlines();
-                    let ts = ThemeSet::load_defaults();
-
-                    let language = match l.as_str() {
-                        "rust" => "Rust",
-                        "python" => "Python",
-                        "cpp" => "C++",
-                        _ => "Plain Text",
-                    };
-
-                    let syntax = match ps.find_syntax_by_name(&language) {
-                        Some(s) => s,
-                        None => {
-                            eprintln!("{} not found.", l);
-                            ps.find_syntax_by_name("Plain Text").unwrap()
-                        }
-                    };
-                    let hh = highlighted_html_for_string(
-                        &code,
-                        &ps,
-                        &syntax,
-                        &ts.themes["Solarized (light)"],
-                    );
-
-                    let t = hh.unwrap();
-                    // t.push_str(r#"</code></pre>"#);
-
-                    // cleanup
-                    code_language = None;
-                    codes = vec![];
-
-                    // println!("{}", t);
-
-                    // return Event::Html(t.into());
-                    events.push(Event::Html(t.into()));
-                }
-                _ => {}
-            };
-
-            // Event::End(Tag::CodeBlock(c.clone()))
-            events.push(ev.clone());
-        }
-        Event::Text(ref t) => {
-            match code_language {
-                Some(_) => {
-                    codes.push(t.clone().to_string());
-                    return;
-                }
-                _ => {}
+                // return Event::Start(Tag::CodeBlock(c.clone()));
+                events.push(ev.clone());
             }
+            Event::End(Tag::CodeBlock(ref c)) => {
+                match &code_language {
+                    Some(l) => {
+                        // println!("{}", l);
+                        let code = codes.join("");
 
-            // let t = l.unwrap();
-            // Event::End(Tag::CodeBlock(CowStr::from(hh.unwrap())))
-            // Event::Text(t)
-            events.push(ev);
-        }
-        _ => {
-            events.push(ev);
-        }
-    });
+                        // Load these once at the start of your program
+                        let ps = SyntaxSet::load_defaults_newlines();
+                        let ts = ThemeSet::load_defaults();
 
-    events.into_iter()
+                        let language = match l.as_str() {
+                            "rust" => "Rust",
+                            "python" => "Python",
+                            "cpp" => "C++",
+                            _ => "Plain Text",
+                        };
+
+                        let syntax = match ps.find_syntax_by_name(&language) {
+                            Some(s) => s,
+                            None => {
+                                eprintln!("{} not found.", l);
+                                ps.find_syntax_by_name("Plain Text").unwrap()
+                            }
+                        };
+                        let hh =
+                            highlighted_html_for_string(&code, &ps, &syntax, &ts.themes[&p.theme]);
+
+                        let t = hh.unwrap();
+                        // t.push_str(r#"</code></pre>"#);
+
+                        // cleanup
+                        code_language = None;
+                        codes = vec![];
+
+                        // println!("{}", t);
+
+                        // return Event::Html(t.into());
+                        events.push(Event::Html(t.into()));
+                    }
+                    _ => {}
+                };
+
+                // Event::End(Tag::CodeBlock(c.clone()))
+                events.push(ev.clone());
+            }
+            Event::Text(ref t) => {
+                match code_language {
+                    Some(_) => {
+                        codes.push(t.clone().to_string());
+                        return;
+                    }
+                    _ => {}
+                }
+
+                // let t = l.unwrap();
+                // Event::End(Tag::CodeBlock(CowStr::from(hh.unwrap())))
+                // Event::Text(t)
+                events.push(ev);
+            }
+            _ => {
+                events.push(ev);
+            }
+        });
+
+        events.into_iter()
+    }
 }
 
 fn main() {
     println!("Hello, world!");
 
+    let settings = match settings::Settings::load(&Path::new(".mtoh.toml")) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
+
+    println!(
+        "version={}, theme={}",
+        settings.version, settings.code.highlight.theme,
+    );
+
     // let ps = SyntaxSet::load_defaults_newlines();
     // for ele in ps.syntaxes() {
     //     println!("{} === {}", ele.name, ele.file_extensions.join(", "));
+    // }
+
+    // let ts = ThemeSet::load_defaults();
+    // for ele in ts.themes {
+    //     println!("{}", ele.0);
     // }
 
     let binding = Path::new("md").join("test.md");
@@ -217,7 +235,10 @@ fn main() {
         .collect::<Vec<String>>()
         .join("\n");
 
-    let parser = setup_parser(Parser::new_ext(text.as_str(), options));
+    let ppp = PParser {
+        theme: settings.code.highlight.theme.to_string(),
+    };
+    let parser = PParser::setup_parser(Parser::new_ext(text.as_str(), options), &ppp);
 
     let mut html = String::new();
     html.push_str(&format!(r#"<!DOCTYPE html><html lang="ja-JP"><head><meta charset="utf-8" /><title>{}</title>{}</head><body>"#,"test",link_tags)
@@ -241,7 +262,8 @@ fn main() {
     let syntax = ps.find_syntax_by_extension("rs").unwrap();
     let s = "pub struct Wow { hi: u64 }\nfn blah() -> u64 {}";
 
-    let hh = highlighted_html_for_string(&s, &ps, &syntax, &ts.themes["Solarized (light)"]);
+    let hh =
+        highlighted_html_for_string(&s, &ps, &syntax, &ts.themes[&settings.code.highlight.theme]);
     println!("{}", hh.as_ref().unwrap());
     // html.push_str(hh.as_ref().unwrap());
 
