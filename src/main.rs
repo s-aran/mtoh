@@ -101,6 +101,32 @@ impl PParser {
     }
 }
 
+pub fn enum_files(
+    path: &Path,
+    recursive: bool,
+    callback: &mut dyn FnMut(&Path),
+) -> Result<(), String> {
+    if !path.is_dir() {
+        return Err(format!("{} is invalid", path.to_string_lossy()));
+    }
+
+    let files = path.read_dir().unwrap();
+
+    for dir_entry in files {
+        let dir_entry = dir_entry.unwrap();
+        let path = dir_entry.path();
+
+        if recursive && path.is_dir() {
+            enum_files(&path, recursive, callback)?;
+        } else {
+            // println!("{}", path.to_str().unwrap());
+            callback(&path);
+        }
+    }
+
+    Ok(())
+}
+
 fn main() {
     println!("Hello, world!");
 
@@ -127,32 +153,51 @@ fn main() {
     //     println!("{}", ele.0);
     // }
 
-    let binding = Path::new("md").join("test.md");
-    let path = match binding.to_str() {
-        Some(p) => p,
-        None => {
-            eprintln!("{}", "unsupport path");
-            std::process::exit(1);
-        }
-    };
+    let mut markdown_files: Vec<PathBuf> = vec![];
+    let markdown_dir_path = Path::new(&settings.input.markdown_dir);
+    if !markdown_dir_path.exists() {
+        eprintln!("{} is not exists.", markdown_dir_path.to_string_lossy());
+        std::process::exit(1);
+    }
 
-    let text = match fs::read_to_string(path) {
-        Ok(s) => s,
+    match enum_files(&markdown_dir_path, false, &mut |p: &Path| {
+        markdown_files.push(p.to_path_buf());
+    }) {
+        Ok(()) => {}
         Err(e) => {
-            eprintln!("{} {}", "cannot read", path);
+            eprintln!("{}", e);
             std::process::exit(1);
         }
-    };
-
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_HEADING_ATTRIBUTES);
-
-    // let mut code_language: Option<CowStr> = None;
+    }
 
     let mut sass_files: Vec<PathBuf> = vec![];
-    sass_files.push(Path::new("sass").join("main.scss"));
+    let sass_dir_path = Path::new(&settings.input.sass_dir);
+    if !sass_dir_path.exists() {
+        eprintln!("{} is not exists.", sass_dir_path.to_string_lossy());
+        std::process::exit(1);
+    }
+
+    match enum_files(&sass_dir_path, false, &mut |p: &Path| {
+        sass_files.push(p.to_path_buf());
+    }) {
+        Ok(()) => {}
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    }
+
+    let css_dir_path = Path::new(&settings.output.css_dir);
+    if !css_dir_path.exists() {
+        eprintln!("{} is not exists.", css_dir_path.to_string_lossy());
+        std::process::exit(1);
+    }
+
+    let html_dir_path = Path::new(&settings.output.html_dir);
+    if !html_dir_path.exists() {
+        eprintln!("{} is not exists.", html_dir_path.to_string_lossy());
+        std::process::exit(1);
+    }
 
     let mut css_files: Vec<PathBuf> = vec![Path::new("..")
         .join("modern-css-reset")
@@ -199,10 +244,10 @@ fn main() {
                 return Path::new("").to_path_buf();
             }
         };
+
         let new_name = format!("{}css", name);
-        let result = Path::new("css").join(new_name);
-        let out = Path::new("html").join(result.as_path());
-        let mut file = match File::create(&out) {
+        let result = css_dir_path.join(new_name);
+        let mut file = match File::create(&result) {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("{}", e.to_string());
@@ -219,7 +264,7 @@ fn main() {
             }
         }
 
-        result
+        result.strip_prefix(html_dir_path).unwrap().to_path_buf()
     }));
 
     let link_tags = css_files
@@ -227,7 +272,6 @@ fn main() {
         .map(|s| {
             format!(
                 r#"<link href="{}" rel="stylesheet" type="text/css" />"#,
-                // r#"<link href="{}" rel="stylesheet" />"#,
                 // for windows
                 s.to_string_lossy().replace(MAIN_SEPARATOR, "/")
             )
@@ -235,44 +279,70 @@ fn main() {
         .collect::<Vec<String>>()
         .join("\n");
 
-    let ppp = PParser {
-        theme: settings.code.highlight.theme.to_string(),
-    };
-    let parser = PParser::setup_parser(Parser::new_ext(text.as_str(), options), &ppp);
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_HEADING_ATTRIBUTES);
 
-    let mut html = String::new();
-    html.push_str(&format!(r#"<!DOCTYPE html><html lang="ja-JP"><head><meta charset="utf-8" /><title>{}</title>{}</head><body>"#,"test",link_tags)
+    for md in markdown_files.iter() {
+        let text = match fs::read_to_string(md) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+
+        let pp = PParser {
+            theme: settings.code.highlight.theme.to_string(),
+        };
+        let parser = PParser::setup_parser(Parser::new_ext(text.as_str(), options), &pp);
+
+        let mut html = String::new();
+        html.push_str(&format!(r#"<!DOCTYPE html><html lang="ja-JP"><head><meta charset="utf-8" /><title>{}</title>{}</head><body>"#,"test",link_tags)
     );
 
-    html::push_html(&mut html, parser);
-    html.push_str(r#"</body></html>"#);
+        html::push_html(&mut html, parser);
+        html.push_str(r#"</body></html>"#);
 
-    let mut file = match File::create(Path::new("html").join("test.html")) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("{}", e.to_string());
-            std::process::exit(1);
-        }
-    };
+        let name = match md.file_name() {
+            Some(n) => {
+                let ext = match md.extension() {
+                    Some(e) => e.to_string_lossy().to_string(),
+                    None => {
+                        eprintln!("cannot get file extension: {}", md.to_string_lossy());
+                        std::process::exit(1);
+                    }
+                };
 
-    // Load these once at the start of your program
-    let ps = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
+                let n_str = n.to_string_lossy().to_string();
+                let splitted = n_str.as_str().split(ext.as_str()).collect::<Vec<&str>>();
+                splitted[0].to_string()
+            }
+            None => {
+                eprintln!("cannot get filename: {}", md.to_string_lossy());
+                std::process::exit(1);
+            }
+        };
 
-    let syntax = ps.find_syntax_by_extension("rs").unwrap();
-    let s = "pub struct Wow { hi: u64 }\nfn blah() -> u64 {}";
+        let new_name = format!("{}html", name);
+        let result = html_dir_path.join(new_name);
 
-    let hh =
-        highlighted_html_for_string(&s, &ps, &syntax, &ts.themes[&settings.code.highlight.theme]);
-    println!("{}", hh.as_ref().unwrap());
-    // html.push_str(hh.as_ref().unwrap());
+        let mut file = match File::create(result) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("{}", e.to_string());
+                std::process::exit(1);
+            }
+        };
 
-    let buf = html.as_bytes();
-    match file.write_all(&buf) {
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
+        let buf = html.as_bytes();
+        match file.write_all(&buf) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     }
 }
