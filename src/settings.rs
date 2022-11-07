@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +19,8 @@ pub struct Input {
     pub markdown_dir: String,
     #[serde(default = "default_input_sass_dir")]
     pub sass_dir: String,
+    #[serde(default = "default_input_template_dir")]
+    pub template_dir: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -54,6 +53,10 @@ fn default_input_sass_dir() -> String {
     Input::default().sass_dir
 }
 
+fn default_input_template_dir() -> String {
+    Input::default().template_dir
+}
+
 fn default_output_html_dir() -> String {
     Output::default().html_dir
 }
@@ -76,7 +79,7 @@ impl Settings {
             version: 1,
             input: match input {
                 Some(o) => o,
-                None => Input::new(None, None),
+                None => Input::new(None, None, None),
             },
             output: match output {
                 Some(o) => o,
@@ -111,7 +114,11 @@ impl Settings {
 }
 
 impl Input {
-    pub fn new(markdown_dir: Option<&str>, sass_dir: Option<&str>) -> Self {
+    pub fn new(
+        markdown_dir: Option<&str>,
+        sass_dir: Option<&str>,
+        template_dir: Option<&str>,
+    ) -> Self {
         Self {
             markdown_dir: match markdown_dir {
                 Some(s) => s.to_owned(),
@@ -121,13 +128,17 @@ impl Input {
                 Some(s) => s.to_owned(),
                 None => "sass".to_string(),
             },
+            template_dir: match template_dir {
+                Some(s) => s.to_string(),
+                None => "template".to_string(),
+            },
         }
     }
 }
 
 impl Default for Input {
     fn default() -> Self {
-        Input::new(None, None)
+        Input::new(None, None, None)
     }
 }
 

@@ -1,6 +1,8 @@
 mod settings;
 
+use handlebars::Handlebars;
 use pulldown_cmark::{html, CodeBlockKind, Event, Options, Parser, Tag};
+use serde_json::json;
 use std::{
     fs::{self, File},
     io::Write,
@@ -143,6 +145,47 @@ fn main() {
         settings.version, settings.code.highlight.theme,
     );
 
+    // let mut template_files: Vec<PathBuf> = vec![];
+    // let template_dir_path = Path::new(&settings.input.template_dir);
+    // if !template_dir_path.exists() {
+    //     eprintln!("{} is not exists.", template_dir_path.to_string_lossy());
+    //     std::process::exit(1);
+    // }
+
+    // match enum_files(&template_dir_path, false, &mut |p: &Path| {
+    //     template_files.push(p.to_path_buf());
+    // }) {
+    //     Ok(()) => {}
+    //     Err(e) => {
+    //         eprintln!("{}", e);
+    //         std::process::exit(1);
+    //     }
+    // }
+
+    // for template in template_files.iter() {
+    //     let text = match fs::read_to_string(template) {
+    //         Ok(s) => s,
+    //         Err(e) => {
+    //             eprintln!("{}", e);
+    //             std::process::exit(1);
+    //         }
+    //     };
+
+    //     let mut reg = Handlebars::new();
+    //     println!(
+    //         "{}",
+    //         reg.render_template(text.as_str(), &json!({"name": "西園寺世界"}))
+    //             .unwrap()
+    //     );
+
+    //     // reg.register_template_string("tpl_1", "{{name}} xxxxed by Katsura Kotonoha")
+    //     //     .unwrap();
+    //     // println!(
+    //     //     "{}",
+    //     //     reg.render("tpl_1", &json!({"name": "西園寺世界"})).unwrap()
+    //     // );
+    // }
+
     // let ps = SyntaxSet::load_defaults_newlines();
     // for ele in ps.syntaxes() {
     //     println!("{} === {}", ele.name, ele.file_extensions.join(", "));
@@ -279,6 +322,15 @@ fn main() {
         .collect::<Vec<String>>()
         .join("\n");
 
+    let html_template =
+        match fs::read_to_string(Path::new(&settings.input.template_dir).join("code.hbs")) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TABLES);
@@ -299,11 +351,15 @@ fn main() {
         let parser = PParser::setup_parser(Parser::new_ext(text.as_str(), options), &pp);
 
         let mut html = String::new();
-        html.push_str(&format!(r#"<!DOCTYPE html><html lang="ja-JP"><head><meta charset="utf-8" /><title>{}</title>{}</head><body>"#,"test",link_tags)
-    );
-
         html::push_html(&mut html, parser);
-        html.push_str(r#"</body></html>"#);
+
+        let reg = Handlebars::new();
+        let output = reg
+            .render_template(
+                &html_template.as_str(),
+                &json!({"title": "西園寺世界", "content": html, "css_link": link_tags.as_str()}),
+            )
+            .unwrap();
 
         let name = match md.file_name() {
             Some(n) => {
@@ -336,7 +392,7 @@ fn main() {
             }
         };
 
-        let buf = html.as_bytes();
+        let buf = output.as_bytes();
         match file.write_all(&buf) {
             Ok(_) => {}
             Err(e) => {
