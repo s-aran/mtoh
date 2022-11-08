@@ -83,6 +83,7 @@ impl PParser {
             Event::Text(ref t) => {
                 match code_language {
                     Some(_) => {
+                        // println!("Text: {}", &t.to_string());
                         codes.push(t.clone().to_string());
                         return;
                     }
@@ -92,6 +93,10 @@ impl PParser {
                 // let t = l.unwrap();
                 // Event::End(Tag::CodeBlock(CowStr::from(hh.unwrap())))
                 // Event::Text(t)
+                events.push(ev);
+            }
+            Event::Html(ref t) => {
+                // println!("Html: {}", &t);
                 events.push(ev);
             }
             _ => {
@@ -170,21 +175,6 @@ fn main() {
     //             std::process::exit(1);
     //         }
     //     };
-
-    //     let mut reg = Handlebars::new();
-    //     println!(
-    //         "{}",
-    //         reg.render_template(text.as_str(), &json!({"name": "西園寺世界"}))
-    //             .unwrap()
-    //     );
-
-    //     // reg.register_template_string("tpl_1", "{{name}} xxxxed by Katsura Kotonoha")
-    //     //     .unwrap();
-    //     // println!(
-    //     //     "{}",
-    //     //     reg.render("tpl_1", &json!({"name": "西園寺世界"})).unwrap()
-    //     // );
-    // }
 
     // let ps = SyntaxSet::load_defaults_newlines();
     // for ele in ps.syntaxes() {
