@@ -1,112 +1,15 @@
+mod md_event;
+mod html_gen;
 mod settings;
 
 use handlebars::Handlebars;
-use pulldown_cmark::{html, CodeBlockKind, Event, Options, Parser, Tag};
+use pulldown_cmark::{html, Options, Parser};
 use serde_json::json;
 use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
-use syntect::highlighting::{Style, ThemeSet};
-use syntect::html::highlighted_html_for_string;
-use syntect::parsing::SyntaxSet;
-
-pub struct PParser {
-    pub theme: String,
-}
-
-impl PParser {
-    pub fn setup_parser<'a, I>(iter: I, p: &PParser) -> impl Iterator<Item = Event<'a>>
-    where
-        I: Iterator<Item = Event<'a>>,
-    {
-        let mut code_language: Option<String> = None;
-        let mut events: Vec<Event> = vec![];
-        let mut codes: Vec<String> = vec![];
-
-        iter.for_each(|ev| match &ev {
-            Event::Start(Tag::CodeBlock(ref c)) => {
-                code_language = match &c {
-                    CodeBlockKind::Fenced(f) => Some(f.to_string()),
-                    _ => None,
-                };
-
-                // return Event::Start(Tag::CodeBlock(c.clone()));
-                events.push(ev.clone());
-            }
-            Event::End(Tag::CodeBlock(ref c)) => {
-                match &code_language {
-                    Some(l) => {
-                        // println!("{}", l);
-                        let code = codes.join("");
-
-                        // Load these once at the start of your program
-                        let ps = SyntaxSet::load_defaults_newlines();
-                        let ts = ThemeSet::load_defaults();
-
-                        let language = match l.as_str() {
-                            "rust" => "Rust",
-                            "python" => "Python",
-                            "cpp" => "C++",
-                            _ => "Plain Text",
-                        };
-
-                        let syntax = match ps.find_syntax_by_name(&language) {
-                            Some(s) => s,
-                            None => {
-                                eprintln!("{} not found.", l);
-                                ps.find_syntax_by_name("Plain Text").unwrap()
-                            }
-                        };
-                        let hh =
-                            highlighted_html_for_string(&code, &ps, &syntax, &ts.themes[&p.theme]);
-
-                        let t = hh.unwrap();
-                        // t.push_str(r#"</code></pre>"#);
-
-                        // cleanup
-                        code_language = None;
-                        codes = vec![];
-
-                        // println!("{}", t);
-
-                        // return Event::Html(t.into());
-                        events.push(Event::Html(t.into()));
-                    }
-                    _ => {}
-                };
-
-                // Event::End(Tag::CodeBlock(c.clone()))
-                events.push(ev.clone());
-            }
-            Event::Text(ref t) => {
-                match code_language {
-                    Some(_) => {
-                        // println!("Text: {}", &t.to_string());
-                        codes.push(t.clone().to_string());
-                        return;
-                    }
-                    _ => {}
-                }
-
-                // let t = l.unwrap();
-                // Event::End(Tag::CodeBlock(CowStr::from(hh.unwrap())))
-                // Event::Text(t)
-                events.push(ev);
-            }
-            Event::Html(ref t) => {
-                // println!("Html: {}", &t);
-                events.push(ev);
-            }
-            _ => {
-                events.push(ev);
-            }
-        });
-
-        events.into_iter()
-    }
-}
 
 pub fn enum_files(
     path: &Path,
@@ -335,10 +238,7 @@ fn main() {
             }
         };
 
-        let pp = PParser {
-            theme: settings.code.highlight.theme.to_string(),
-        };
-        let parser = PParser::setup_parser(Parser::new_ext(text.as_str(), options), &pp);
+        let parser = html_gen::setup_parser(Parser::new_ext(text.as_str(), options), &settings);
 
         let mut html = String::new();
         html::push_html(&mut html, parser);
@@ -347,7 +247,7 @@ fn main() {
         let output = reg
             .render_template(
                 &html_template.as_str(),
-                &json!({"title": "西園寺世界", "content": html, "css_link": link_tags.as_str()}),
+                &json!({"title": "test", "content": html, "css_link": link_tags.as_str()}),
             )
             .unwrap();
 
