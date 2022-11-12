@@ -1,16 +1,17 @@
-use std::collections::HashMap;
-
-use pulldown_cmark::{CowStr, Event};
+use pulldown_cmark::Event;
 use regex::Regex;
+use std::collections::HashMap;
 
 const COMMENT_BEGIN: &str = r"<!--";
 const COMMENT_END: &str = r"-->";
 const COMMENT_TAG: &str = r#":(?P<key>.+): *["']?(?P<value>.+?)["']? *"#;
+const EMOJI_SHORTCODE: &str = ":([a-zA-Z0-9]+?):";
 
 pub struct ReCollection {
     pub comment_begin: Regex,
     pub comment_tag: Regex,
     pub comment_end: Regex,
+    pub emoji_shortcode: Regex,
 }
 
 impl ReCollection {
@@ -20,17 +21,22 @@ impl ReCollection {
         };
 
         let Ok(re_comment_tag) = Regex::new(format!(r"{}($|{})", COMMENT_TAG, COMMENT_END).as_str()) else {
-            panic!("{} failed", COMMENT_TAG);
+            panic!("regex compile failed: {}", COMMENT_TAG);
         };
 
         let Ok(re_comment_end) = Regex::new(format!(r" ?{}$", COMMENT_END).as_str()) else {
-            panic!("{} failed", COMMENT_END);
+            panic!("regex compile failed: {}", COMMENT_END);
+        };
+
+        let Ok(re_emoji_shortcode) = Regex::new(EMOJI_SHORTCODE) else {
+            panic!("regex compile failed: {}", EMOJI_SHORTCODE);
         };
 
         Self {
             comment_begin: re_comment_begin,
             comment_tag: re_comment_tag,
             comment_end: re_comment_end,
+            emoji_shortcode: re_emoji_shortcode,
         }
     }
 }
