@@ -19,6 +19,7 @@ where
             }
             _ => {
                 // println!("event: Start (Other)");
+                workarea.push_event(&ev);
             }
         },
 
@@ -32,6 +33,7 @@ where
             }
             _ => {
                 // println!("event: End (Other)");
+                workarea.push_event(&ev);
             }
         },
         Event::Text(content) => {
@@ -49,7 +51,7 @@ where
         }
         _ => {
             // println!("event: ???");
-            workarea.events.push(ev);
+            workarea.push_event(&ev);
         }
     });
 
