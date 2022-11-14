@@ -27,6 +27,5 @@ pub fn event<'a>(
     workarea.is_comment = (workarea.is_comment | workarea.re.comment_begin.is_match(content))
         & !workarea.re.comment_end.is_match(content);
 
-    workarea.push_content(&content.to_string());
     workarea.push_event(ev);
 }
