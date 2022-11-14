@@ -5,7 +5,7 @@ use std::collections::HashMap;
 const COMMENT_BEGIN: &str = r"<!--";
 const COMMENT_END: &str = r"-->";
 const COMMENT_TAG: &str = r#":(?P<key>.+): *["']?(?P<value>.+?)["']? *"#;
-const EMOJI_SHORTCODE: &str = ":([a-zA-Z0-9]+?):";
+const EMOJI_SHORTCODE: &str = ":[a-zA-Z0-9]+?:";
 
 pub struct ReCollection {
     pub comment_begin: Regex,
