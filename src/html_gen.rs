@@ -64,7 +64,7 @@ where
     workarea.events.into_iter()
 }
 
-pub fn replace_emoji_shortcode<'a, 't>(
+pub fn replace_emoji_shortcode<'a>(
     workarea: &Workarea,
     content: &CowStr,
 ) -> Result<String, String> {
@@ -92,7 +92,7 @@ pub fn replace_emoji_shortcode<'a, 't>(
                 // so there is no need to recalculate the index (v.start and v.end)
                 let before = &result[..v.start];
                 let after = &result[v.end..];
-                result = format!("{}{}{}", before, e.as_str(), after);
+                result = [before, e.as_str(), after].join("");
             }
             None => {}
         }
