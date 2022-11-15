@@ -21,6 +21,8 @@ pub struct Input {
     pub sass_dir: String,
     #[serde(default = "default_input_template_dir")]
     pub template_dir: String,
+    #[serde(default = "default_input_img_dir")]
+    pub img_dir: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -31,6 +33,8 @@ pub struct Output {
     pub css_dir: String,
     #[serde(default = "default_output_js_dir")]
     pub js_dir: String,
+    #[serde(default = "default_output_img_dir")]
+    pub img_dir: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -57,6 +61,10 @@ fn default_input_template_dir() -> String {
     Input::default().template_dir
 }
 
+fn default_input_img_dir() -> String {
+    Input::default().img_dir
+}
+
 fn default_output_html_dir() -> String {
     Output::default().html_dir
 }
@@ -69,6 +77,10 @@ fn default_output_js_dir() -> String {
     Output::default().js_dir
 }
 
+fn default_output_img_dir() -> String {
+    Output::default().img_dir
+}
+
 fn default_code_highlight_theme() -> String {
     CodeHighlight::default().theme
 }
@@ -79,11 +91,11 @@ impl Settings {
             version: 1,
             input: match input {
                 Some(o) => o,
-                None => Input::new(None, None, None),
+                None => Input::new(None, None, None, None),
             },
             output: match output {
                 Some(o) => o,
-                None => Output::new(None, None, None),
+                None => Output::new(None, None, None, None),
             },
             code: match code {
                 Some(o) => o,
@@ -118,19 +130,27 @@ impl Input {
         markdown_dir: Option<&str>,
         sass_dir: Option<&str>,
         template_dir: Option<&str>,
+        img_dir: Option<&str>,
     ) -> Self {
+        let md = match markdown_dir {
+            Some(s) => s,
+            None => "md",
+        };
         Self {
-            markdown_dir: match markdown_dir {
-                Some(s) => s.to_owned(),
-                None => "md".to_string(),
-            },
+            markdown_dir: md.to_owned(),
             sass_dir: match sass_dir {
-                Some(s) => s.to_owned(),
-                None => "sass".to_string(),
-            },
+                Some(s) => s,
+                None => "sass",
+            }
+            .to_owned(),
             template_dir: match template_dir {
-                Some(s) => s.to_string(),
-                None => "template".to_string(),
+                Some(s) => s,
+                None => "template",
+            }
+            .to_owned(),
+            img_dir: match img_dir {
+                Some(s) => s.into(),
+                None => Path::new(&md).join("img").to_string_lossy().into(),
             },
         }
     }
@@ -138,12 +158,17 @@ impl Input {
 
 impl Default for Input {
     fn default() -> Self {
-        Input::new(None, None, None)
+        Input::new(None, None, None, None)
     }
 }
 
 impl Output {
-    pub fn new(html_dir: Option<&str>, css_dir: Option<&str>, js_dir: Option<&str>) -> Self {
+    pub fn new(
+        html_dir: Option<&str>,
+        css_dir: Option<&str>,
+        js_dir: Option<&str>,
+        img_dir: Option<&str>,
+    ) -> Self {
         let html = match html_dir {
             Some(s) => s,
             None => "html",
@@ -153,11 +178,15 @@ impl Output {
             html_dir: html.into(),
             css_dir: match css_dir {
                 Some(s) => s.into(),
-                None => Path::new(&html).join("css").to_string_lossy().to_string(),
+                None => Path::new(&html).join("css").to_string_lossy().into(),
             },
             js_dir: match js_dir {
                 Some(s) => s.into(),
-                None => Path::new(&html).join("css").to_string_lossy().to_string(),
+                None => Path::new(&html).join("css").to_string_lossy().into(),
+            },
+            img_dir: match img_dir {
+                Some(s) => s.into(),
+                None => Path::new(&html).join("img").to_string_lossy().into(),
             },
         }
     }
@@ -165,7 +194,7 @@ impl Output {
 
 impl Default for Output {
     fn default() -> Self {
-        Output::new(None, None, None)
+        Output::new(None, None, None, None)
     }
 }
 
@@ -190,9 +219,10 @@ impl CodeHighlight {
     pub fn new(theme: Option<&str>) -> Self {
         Self {
             theme: match theme {
-                Some(s) => s.into(),
-                None => "Solarized (light)".to_string(),
-            },
+                Some(s) => s,
+                None => "Solarized (light)",
+            }
+            .into(),
         }
     }
 }
