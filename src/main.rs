@@ -1,5 +1,5 @@
-mod md_event;
 mod html_gen;
+mod md_event;
 mod settings;
 
 use handlebars::Handlebars;
@@ -97,7 +97,9 @@ fn main() {
     }
 
     match enum_files(&markdown_dir_path, false, &mut |p: &Path| {
-        markdown_files.push(p.to_path_buf());
+        if p.is_file() {
+            markdown_files.push(p.to_path_buf());
+        }
     }) {
         Ok(()) => {}
         Err(e) => {

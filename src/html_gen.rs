@@ -1,4 +1,6 @@
-use pulldown_cmark::{Tag, Event};
+use std::path::Path;
+
+use pulldown_cmark::{Event, Tag};
 
 use crate::md_event::workarea::Workarea;
 use crate::md_event::{end, html, start, text};
@@ -17,6 +19,27 @@ where
                 workarea.break_frags();
                 workarea.is_code = true;
                 start::event_code(&mut workarea, &settings, &ev, &kind);
+            }
+            Tag::Image(_, src, _) => {
+                let src_str = src.to_string();
+                let output_img_dir = settings.output.img_dir.to_string();
+                let input_img_dir = settings.input.img_dir.to_string();
+                let filename = Path::new(&src_str).file_name().unwrap();
+
+                let from = Path::new(&input_img_dir).join(filename);
+                let to = Path::new(&output_img_dir).join(filename);
+                match std::fs::copy(&from, &to) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!(
+                            "{} {} -> {}",
+                            e,
+                            from.to_string_lossy(),
+                            to.to_string_lossy()
+                        );
+                    }
+                }
+                workarea.push_event(&ev);
             }
             _ => {
                 // println!("event: Start (Other)");
@@ -62,4 +85,3 @@ where
 
     workarea.events.into_iter()
 }
-
