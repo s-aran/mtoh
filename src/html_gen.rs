@@ -4,7 +4,7 @@ use pulldown_cmark::{Event, Tag};
 
 use crate::md_event::workarea::Workarea;
 use crate::md_event::{end, html, start, text};
-use crate::settings::Settings;
+use crate::settings::settings::Settings;
 
 pub fn setup_parser<'a, I>(iter: I, settings: &Settings) -> impl Iterator<Item = Event<'a>>
 where

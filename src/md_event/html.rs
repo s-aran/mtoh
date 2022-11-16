@@ -1,5 +1,6 @@
+use crate::settings::settings::Settings;
+
 use super::workarea::Workarea;
-use crate::settings::Settings;
 use pulldown_cmark::{CowStr, Event};
 
 pub fn event<'a>(

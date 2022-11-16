@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 
+use crate::settings::settings::Settings;
+
 pub fn enum_files(
     path: &Path,
     recursive: bool,
@@ -40,7 +42,7 @@ pub fn enum_files(
 fn main() {
     println!("Hello, world!");
 
-    let settings = match settings::Settings::load(&Path::new(".mtoh.toml")) {
+    let settings = match Settings::load(&Path::new(".mtoh.toml")) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}", e);

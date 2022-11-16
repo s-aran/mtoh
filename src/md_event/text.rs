@@ -5,7 +5,7 @@ use pulldown_cmark::{CowStr, Event};
 use regex::Regex;
 
 use super::workarea::Workarea;
-use crate::settings::Settings;
+use crate::settings::settings::Settings;
 
 pub fn event<'a>(
     workarea: &mut Workarea<'a>,
