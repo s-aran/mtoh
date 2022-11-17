@@ -27,7 +27,7 @@ impl Settings {
             },
             output: match output {
                 Some(o) => o,
-                None => Output::new(None, None, None, None),
+                None => Output::new(None, None, None, None, None),
             },
             code: match code {
                 Some(o) => o,

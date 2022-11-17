@@ -2,6 +2,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use super::output_settings::image::OutputImage;
+
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Output {
     #[serde(default = "default_output_html_dir")]
@@ -12,6 +14,9 @@ pub struct Output {
     pub js_dir: String,
     #[serde(default = "default_output_img_dir")]
     pub img_dir: String,
+
+    #[serde(default)]
+    pub image: OutputImage,
 }
 
 fn default_output_html_dir() -> String {
@@ -36,6 +41,7 @@ impl Output {
         css_dir: Option<&str>,
         js_dir: Option<&str>,
         img_dir: Option<&str>,
+        image: Option<OutputImage>,
     ) -> Self {
         let html = match html_dir {
             Some(s) => s,
@@ -56,12 +62,16 @@ impl Output {
                 Some(s) => s.into(),
                 None => Path::new(&html).join("img").to_string_lossy().into(),
             },
+            image: match image {
+                Some(o) => o,
+                None => OutputImage::new(None),
+            },
         }
     }
 }
 
 impl Default for Output {
     fn default() -> Self {
-        Output::new(None, None, None, None)
+        Output::new(None, None, None, None, None)
     }
 }

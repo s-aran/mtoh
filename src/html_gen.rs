@@ -1,3 +1,5 @@
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::Path;
 
 use pulldown_cmark::{Event, Tag};
@@ -20,7 +22,7 @@ where
                 workarea.is_code = true;
                 start::event_code(&mut workarea, &settings, &ev, &kind);
             }
-            Tag::Image(_, src, _) => {
+            Tag::Image(link_type, src, title) => {
                 let src_str = src.to_string();
                 let output_img_dir = settings.output.img_dir.to_string();
                 let input_img_dir = settings.input.img_dir.to_string();
@@ -28,15 +30,44 @@ where
 
                 let from = Path::new(&input_img_dir).join(filename);
                 let to = Path::new(&output_img_dir).join(filename);
-                match std::fs::copy(&from, &to) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!(
-                            "{} {} -> {}",
-                            e,
-                            from.to_string_lossy(),
-                            to.to_string_lossy()
-                        );
+
+                if settings.output.image.use_base64 {
+                    let mut file = match File::open(from.as_path()) {
+                        Ok(f) => f,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            return;
+                        }
+                    };
+
+                    let mut file_content: Vec<u8> = Vec::new();
+                    match file.read_to_end(&mut file_content) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            return;
+                        }
+                    };
+
+                    let encoded_image = base64::encode(&file_content);
+                    let img_src = format!("data:image/png;base64,{}", encoded_image);
+                    let tag = Tag::Image(
+                        *link_type,
+                        pulldown_cmark::CowStr::from(img_src),
+                        title.clone(),
+                    );
+                    workarea.push_event(&Event::Start(tag));
+                } else {
+                    match std::fs::copy(&from, &to) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!(
+                                "{} {} -> {}",
+                                e,
+                                from.to_string_lossy(),
+                                to.to_string_lossy()
+                            );
+                        }
                     }
                 }
                 workarea.push_event(&ev);

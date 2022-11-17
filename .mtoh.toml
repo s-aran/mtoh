@@ -3,11 +3,16 @@ version = 1
 [input]
 markdown_dir = "md"
 sass_dir = "sass"
+img_dir = "md/img"
 
 [output]
 html_dir = "html"
 css_dir = "html/css"
 js_dir = "html/js"
+img_dir = "html/img"
+
+[output.image]
+use_base64 = true
 
 [code.highlight]
 theme = "Solarized (light)"
