@@ -6,6 +6,7 @@ use handlebars::Handlebars;
 use pulldown_cmark::{html, Options, Parser};
 use serde_json::json;
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf, MAIN_SEPARATOR},
@@ -242,7 +243,12 @@ fn main() {
             }
         };
 
-        let parser = html_gen::setup_parser(Parser::new_ext(text.as_str(), options), &settings);
+        let mut metadata: HashMap<String, String> = HashMap::new();
+        let parser = html_gen::setup_parser(
+            Parser::new_ext(text.as_str(), options),
+            &settings,
+            &mut metadata,
+        );
 
         let mut html = String::new();
         html::push_html(&mut html, parser);

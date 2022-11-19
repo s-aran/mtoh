@@ -4,28 +4,40 @@ use std::collections::HashMap;
 
 const COMMENT_BEGIN: &str = r"<!--";
 const COMMENT_END: &str = r"-->";
+const SPECIAL_COMMENT_BEGIN: &str = r"<!---";
+const SPECIAL_COMMENT_END: &str = r"--->";
 const COMMENT_TAG: &str = r#":(?P<key>.+): *["']?(?P<value>.+?)["']? *"#;
 const EMOJI_SHORTCODE: &str = ":[a-zA-Z0-9]+?:";
 
 pub struct ReCollection {
     pub comment_begin: Regex,
-    pub comment_tag: Regex,
     pub comment_end: Regex,
+    pub special_comment_begin: Regex,
+    pub special_comment_end: Regex,
+    pub comment_tag: Regex,
     pub emoji_shortcode: Regex,
 }
 
 impl ReCollection {
     pub fn new() -> Self {
-        let Ok(re_comment_begin) = Regex::new(format!(r"^{} ?", COMMENT_BEGIN).as_str()) else {
+        let Ok(re_comment_begin) = Regex::new(format!(r"^{} *", COMMENT_BEGIN).as_str()) else {
             panic!("regex compile failed: {}", COMMENT_BEGIN);
         };
 
-        let Ok(re_comment_tag) = Regex::new(format!(r"{}($|{})", COMMENT_TAG, COMMENT_END).as_str()) else {
-            panic!("regex compile failed: {}", COMMENT_TAG);
+        let Ok(re_comment_end) = Regex::new(format!(r" *{}$", COMMENT_END).as_str()) else {
+            panic!("regex compile failed: {}", COMMENT_END);
         };
 
-        let Ok(re_comment_end) = Regex::new(format!(r" ?{}$", COMMENT_END).as_str()) else {
-            panic!("regex compile failed: {}", COMMENT_END);
+        let Ok(re_special_comment_begin) = Regex::new(format!(r"^{} *", SPECIAL_COMMENT_BEGIN).as_str()) else {
+            panic!("regex compile failed: {}", SPECIAL_COMMENT_BEGIN);
+        };
+
+        let Ok(re_special_comment_end) = Regex::new(format!(r" *{}[\r\n]*$", SPECIAL_COMMENT_END).as_str()) else {
+            panic!("regex compile failed: {}", SPECIAL_COMMENT_END);
+        };
+
+        let Ok(re_comment_tag) = Regex::new(format!(r"{} *(?:[\r\n]*$|{})", COMMENT_TAG, SPECIAL_COMMENT_END).as_str()) else {
+            panic!("regex compile failed: {}", COMMENT_TAG);
         };
 
         let Ok(re_emoji_shortcode) = Regex::new(EMOJI_SHORTCODE) else {
@@ -34,8 +46,10 @@ impl ReCollection {
 
         Self {
             comment_begin: re_comment_begin,
-            comment_tag: re_comment_tag,
             comment_end: re_comment_end,
+            special_comment_begin: re_special_comment_begin,
+            special_comment_end: re_special_comment_end,
+            comment_tag: re_comment_tag,
             emoji_shortcode: re_emoji_shortcode,
         }
     }
