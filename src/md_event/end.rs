@@ -55,4 +55,5 @@ pub fn event_code<'a>(
 
     // return Event::Html(t.into());
     workarea.push_event(&Event::Html(t.into()));
+    workarea.push_event(ev);
 }
