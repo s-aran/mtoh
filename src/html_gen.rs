@@ -115,10 +115,6 @@ where
         }
     });
 
-    for (k, v) in workarea.meta.iter() {
-        println!("{}: {}", k, v);
-    }
-
     metadata.extend(workarea.meta.into_iter());
     workarea.events.into_iter()
 }
