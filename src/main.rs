@@ -14,11 +14,7 @@ use std::{
 
 use crate::settings::settings::Settings;
 
-pub fn enum_files(
-    path: &Path,
-    recursive: bool,
-    callback: &mut dyn FnMut(&Path),
-) -> Result<(), String> {
+fn enum_files(path: &Path, recursive: bool, callback: &mut dyn FnMut(&Path)) -> Result<(), String> {
     if !path.is_dir() {
         return Err(format!("{} is invalid", path.to_string_lossy()));
     }
@@ -38,6 +34,64 @@ pub fn enum_files(
     }
 
     Ok(())
+}
+
+fn change_extension(source: &Path, ext: &str) -> Result<PathBuf, String> {
+    let name = match source.file_name() {
+        Some(n) => {
+            let ext = match source.extension() {
+                Some(e) => e.to_string_lossy().to_string(),
+                None => {
+                    return Err(format!(
+                        "cannot get file extension: {}",
+                        source.to_string_lossy()
+                    ));
+                }
+            };
+
+            let n_str = n.to_string_lossy().to_string();
+            let splitted = n_str.as_str().split(ext.as_str()).collect::<Vec<&str>>();
+            splitted[0].to_string()
+        }
+        None => {
+            return Err(format!("cannot get filename: {}", source.to_string_lossy()));
+        }
+    };
+
+    Ok(PathBuf::from(format!("{}{}", name, ext)))
+}
+
+fn make_output_html_filename(source: &Path) -> Result<PathBuf, String> {
+    change_extension(source, "html")
+}
+
+fn make_output_css_filename(source: &Path) -> Result<PathBuf, String> {
+    change_extension(source, "css")
+}
+
+fn make_directory_path_with_exists_check(path: &String) -> Result<PathBuf, String> {
+    let result = PathBuf::from(path);
+    if !result.exists() {
+        return Err(format!("{} is not exists.", path));
+    }
+
+    Ok(result)
+}
+
+fn make_md_directory_from(settings: &Settings) -> Result<PathBuf, String> {
+    make_directory_path_with_exists_check(&settings.input.markdown_dir)
+}
+
+fn make_scss_directory_from(settings: &Settings) -> Result<PathBuf, String> {
+    make_directory_path_with_exists_check(&settings.input.sass_dir)
+}
+
+fn make_css_directory_from(settings: &Settings) -> Result<PathBuf, String> {
+    make_directory_path_with_exists_check(&settings.output.css_dir)
+}
+
+fn make_html_directory_from(settings: &Settings) -> Result<PathBuf, String> {
+    make_directory_path_with_exists_check(&settings.output.html_dir)
 }
 
 fn main() {
@@ -93,11 +147,13 @@ fn main() {
     // }
 
     let mut markdown_files: Vec<PathBuf> = vec![];
-    let markdown_dir_path = Path::new(&settings.input.markdown_dir);
-    if !markdown_dir_path.exists() {
-        eprintln!("{} is not exists.", markdown_dir_path.to_string_lossy());
-        std::process::exit(1);
-    }
+    let markdown_dir_path = match make_md_directory_from(&settings) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
     match enum_files(&markdown_dir_path, false, &mut |p: &Path| {
         if p.is_file() {
@@ -112,11 +168,13 @@ fn main() {
     }
 
     let mut sass_files: Vec<PathBuf> = vec![];
-    let sass_dir_path = Path::new(&settings.input.sass_dir);
-    if !sass_dir_path.exists() {
-        eprintln!("{} is not exists.", sass_dir_path.to_string_lossy());
-        std::process::exit(1);
-    }
+    let sass_dir_path = match make_scss_directory_from(&settings) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
     match enum_files(&sass_dir_path, false, &mut |p: &Path| {
         sass_files.push(p.to_path_buf());
@@ -128,17 +186,21 @@ fn main() {
         }
     }
 
-    let css_dir_path = Path::new(&settings.output.css_dir);
-    if !css_dir_path.exists() {
-        eprintln!("{} is not exists.", css_dir_path.to_string_lossy());
-        std::process::exit(1);
-    }
+    let css_dir_path = match make_css_directory_from(&settings) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
-    let html_dir_path = Path::new(&settings.output.html_dir);
-    if !html_dir_path.exists() {
-        eprintln!("{} is not exists.", html_dir_path.to_string_lossy());
-        std::process::exit(1);
-    }
+    let html_dir_path = match make_html_directory_from(&settings) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
     let mut css_files: Vec<PathBuf> = vec![Path::new("..")
         .join("modern-css-reset")
@@ -166,27 +228,13 @@ fn main() {
             }
         };
 
-        let name = match s.file_name() {
-            Some(n) => {
-                let ext = match s.extension() {
-                    Some(e) => e.to_string_lossy().to_string(),
-                    None => {
-                        eprintln!("cannot get file extension: {}", s.to_string_lossy());
-                        return Path::new("").to_path_buf();
-                    }
-                };
-
-                let n_str = n.to_string_lossy().to_string();
-                let splitted = n_str.as_str().split(ext.as_str()).collect::<Vec<&str>>();
-                splitted[0].to_string()
-            }
-            None => {
-                eprintln!("cannot get filename: {}", s.to_string_lossy());
-                return Path::new("").to_path_buf();
+        let new_name = match make_output_css_filename(s) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
             }
         };
-
-        let new_name = format!("{}css", name);
         let result = css_dir_path.join(new_name);
         let mut file = match File::create(&result) {
             Ok(f) => f,
@@ -205,7 +253,10 @@ fn main() {
             }
         }
 
-        result.strip_prefix(html_dir_path).unwrap().to_path_buf()
+        result
+            .strip_prefix(html_dir_path.as_path())
+            .unwrap()
+            .to_path_buf()
     }));
 
     let link_tags = css_files
@@ -261,27 +312,13 @@ fn main() {
             )
             .unwrap();
 
-        let name = match md.file_name() {
-            Some(n) => {
-                let ext = match md.extension() {
-                    Some(e) => e.to_string_lossy().to_string(),
-                    None => {
-                        eprintln!("cannot get file extension: {}", md.to_string_lossy());
-                        std::process::exit(1);
-                    }
-                };
-
-                let n_str = n.to_string_lossy().to_string();
-                let splitted = n_str.as_str().split(ext.as_str()).collect::<Vec<&str>>();
-                splitted[0].to_string()
-            }
-            None => {
-                eprintln!("cannot get filename: {}", md.to_string_lossy());
+        let new_name = match make_output_html_filename(md) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("{}", e);
                 std::process::exit(1);
             }
         };
-
-        let new_name = format!("{}html", name);
         let result = html_dir_path.join(new_name);
 
         let mut file = match File::create(result) {
